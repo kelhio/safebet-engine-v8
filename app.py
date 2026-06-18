@@ -1,9 +1,10 @@
 import streamlit as st
 import requests
 import json
+from datetime import datetime
 
 # 1. CONFIGURATION DE LA PAGE
-st.set_page_config(page_title="SAFE BET ENGINE V8 (API-Football)", page_icon="🔮", layout="wide")
+st.set_page_config(page_title="SAFE BET ENGINE V8 (Prediction API)", page_icon="🔮", layout="wide")
 
 # Look & Feel Cyberpunk / Mode Sombre
 st.markdown("""
@@ -24,16 +25,22 @@ SYSTEM_PROMPT = """Tu es SAFE BET ENGINE PRO V8.
 SPECIALISATION : FOOTBALL UNIQUEMENT.
 
 MISSION :
-- Identifier uniquement les paris à forte probabilité basés sur des données historiques et statistiques détaillées.
-- Calculer le score de confiance et estimer les probabilités à l'aide des données fournies (classement, forme, H2H).
-- Maximiser la fiabilité.
+- Analyser la liste des prédictions et probabilités fournies par l'API pour la date sélectionnée.
+- Identifier les opportunités à forte probabilité en calculant l'Edge par rapport aux cotes du marché fournies.
+- Présenter une analyse ultra-fiable et rejeter les opportunités trop risquées.
 
 ═══════════════════════════════════════
 STRUCTURE D'UNE ANALYSE COMPLETE IMPOSÉE
 ═══════════════════════════════════════
-## 🏟️ 1. CONTEXTE ET ACTUALITE DES ÉQUIPES
-## 📊 2. SCORE DE CONFIANCE (Tableau Markdown calculé sur la Forme, le Classement et le H2H)
+## 🏟️ 1. SÉLECTION ET CONTEXTE DU MATCH
+Choisis le match le plus intéressant ou analyse celui demandé par l'utilisateur à partir des données de l'API.
+
+## 📊 2. SCORE DE CONFIANCE (Tableau Markdown)
+Évalue la fiabilité de la prédiction de l'API (sur 100) en te basant sur les pourcentages de probabilité fournis.
+
 ## 📐 3. PROBABILITES ET CALCUL EDGE (Tableau Marché | Proba Modèle % | Cote | Edge %)
+Calcule l'Edge obligatoire en utilisant la formule : Edge = (Probabilité_Modèle * Cote) - 1.
+
 ## 🏆 4. TOP RECOMMANDATIONS VALUE BET (Uniquement si Edge > 4% et Score > 70)
 
 TONE : Ultra-professionnel, factuel, tableaux markdown, emojis de section."""
@@ -44,66 +51,44 @@ gemini_key = st.sidebar.text_input("Clé API Gemini (Google)", type="password", 
 rapidapi_key = st.sidebar.text_input("Clé RapidAPI", type="password", value="f57504f6a9mshcf02caa7b64be87p11b83ajsnd9bf6340fa9d")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🎫 Paramètres du Match API-Football")
-st.sidebar.info("Utilise un ID de match provenant d'API-Football (Exemple par défaut : 867946)")
-fixture_id_input = st.sidebar.text_input("Entrer le Fixture ID (Match ID)", value="867946")
+st.sidebar.markdown("### 🎫 Paramètres de Recherche")
 
-# 4. FONCTION POUR RÉCUPÉRER LES DONNÉES COMPLÈTES (LIVESTATS, H2H, FORME)
-def fetch_complete_football_data(fixture_id):
-    """Récupère le package complet du match sur la nouvelle API-Football"""
+# Remplacement de l'ID par un sélecteur de date
+date_selectionnee = st.sidebar.date_input("Choisir une date à analyser", datetime.now())
+iso_date_str = date_selectionnee.strftime("%Y-%m-%d")
+
+# 4. FONCTION POUR RÉCUPÉRER LES PRÉDICTIONS PAR DATE
+def fetch_predictions_by_date(date_str):
+    """Interroge Football Prediction API pour récupérer toutes les probabilités d'une date"""
     if not rapidapi_key:
         return {"error": "⚠️ Clé RapidAPI manquante."}
     
+    url = "https://football-prediction-api.p.rapidapi.com/api/v2/predictions"
+    querystring = {"market": "classic", "iso_date": date_str}
     headers = {
-        "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
+        "x-rapidapi-host": "football-prediction-api.p.rapidapi.com",
         "x-rapidapi-key": rapidapi_key
     }
     
-    base_url = "https://api-football-v1.p.rapidapi.com/v3"
-    
     try:
-        # 1. Infos du match et stats des équipes
-        fix_res = requests.get(f"{base_url}/fixtures", headers=headers, params={"id": fixture_id}, timeout=15)
-        if fix_res.status_code != 200 or not fix_res.json().get("response"):
-            return {"error": f"Impossible de trouver le match ID {fixture_id} sur cette API."}
-        
-        fixture_data = fix_res.json()["response"][0]
-        home_id = fixture_data["teams"]["home"]["id"]
-        away_id = fixture_data["teams"]["away"]["id"]
-        league_id = fixture_data["league"]["id"]
-        season = fixture_data["league"]["season"]
-        
-        # 2. Récupération des face-à-face (H2H)
-        h2h_res = requests.get(f"{base_url}/fixtures/headtohead", headers=headers, params={"h2h": f"{home_id}-{away_id}", "next": 5}, timeout=15)
-        h2h_data = h2h_res.json().get("response", [])
-        
-        # 3. Classement de la ligue pour le contexte
-        stand_res = requests.get(f"{base_url}/standings", headers=headers, params={"league": league_id, "season": season}, timeout=15)
-        stand_data = stand_res.json().get("response", [])
-        
-        # Compilation du package de données pour Gemini
-        complete_package = {
-            "match_details": fixture_data,
-            "head_to_head": h2h_data,
-            "league_standings": stand_data
-        }
-        return complete_package
-        
+        response = requests.get(url, headers=headers, params=querystring, timeout=20)
+        if response.status_code == 200:
+            return response.json()
+        return {"error": f"Erreur API (Code {response.status_code}). Vérifie ton abonnement à cette API sur RapidAPI."}
     except Exception as e:
-        return {"error": f"Erreur de connexion API-Football : {str(e)}"}
+        return {"error": f"Impossible de joindre l'API de prédiction : {str(e)}"}
 
 def call_gemini(user_message, context_data=None):
-    """Envoie les données et l'invite à l'API Gemini"""
+    """Envoie les données brutes et la demande à l'API Gemini"""
     if not gemini_key:
         st.error("❌ Tu dois renseigner ta clé API Gemini dans la barre latérale.")
         return None
         
-    # URL officielle v1 standardisée pour Gemini 1.5 Flash
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
     
     full_prompt = f"{SYSTEM_PROMPT}\n\n"
     if context_data:
-        full_prompt += f"[DONNÉES ENTRANTES API-FOOTBALL (CONTEXTE COMPLET)] :\n{json.dumps(context_data, ensure_ascii=False)[:7000]}\n\n"
+        full_prompt += f"[DONNÉES ENTRANTES FOOTBALL PREDICTION API] :\n{json.dumps(context_data, ensure_ascii=False)[:7000]}\n\n"
     full_prompt += f"Demande utilisateur : {user_message}"
     
     payload = {"contents": [{"parts": [{"text": full_prompt}]}]}
@@ -112,13 +97,12 @@ def call_gemini(user_message, context_data=None):
     try:
         res = requests.post(url, headers=headers, json=payload, timeout=45)
         response_json = res.json()
-        
         if 'candidates' in response_json:
             return response_json['candidates'][0]['content']['parts'][0]['text']
         elif 'error' in response_json:
             return f"❌ Erreur de l'API Gemini : {response_json['error'].get('message', 'Erreur inconnue')}"
         else:
-            return f"❌ Réponse inattendue : {response_json}"
+            return f"❌ Réponse inattendue de Gemini."
     except Exception as e:
         st.error(f"Erreur technique de connexion : {e}")
         return None
@@ -127,35 +111,35 @@ def call_gemini(user_message, context_data=None):
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-st.title("🔮 SAFE BET ENGINE V8 (Mode API-SPORTS)")
-st.caption("Moteur de pronostics football v8 connecté aux flux globaux historiques et temps réel.")
+st.title("🔮 SAFE BET ENGINE V8 (Mode Prediction API)")
+st.caption(f"Moteur connecté aux modèles mathématiques prédictifs du marché classique.")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-if st.sidebar.button("📊 Analyser ce Match ID"):
-    with st.spinner("Extraction de l'historique complet, H2H et classements..."):
-        api_data = fetch_complete_football_data(fixture_id_input)
+if st.sidebar.button("📊 Analyser cette Date"):
+    with st.spinner(f"Extraction des prédictions pour le {iso_date_str}..."):
+        api_data = fetch_predictions_by_date(iso_date_str)
         
     with st.chat_message("user"):
-        user_text = f"Analyse complète et calcul d'Edge pour le match ID : {fixture_id_input}"
+        user_text = f"Analyse la liste des prédictions pour la date du : {iso_date_str}"
         st.markdown(user_text)
         
     with st.chat_message("assistant"):
         if "error" in api_data:
             st.error(api_data["error"])
         else:
-            with st.spinner("Le moteur Safe Bet étudie le package de données complet..."):
-                # Injection automatique des cotes fictives/génériques si non fournies pour forcer l'analyse
-                prompt_enrichi = f"{user_text}. Voici les cotes du marché : Victoire Domicile: 2.10, Nul: 3.20, Victoire Extérieure: 3.40. Calcule l'Edge obligatoire."
+            with st.spinner("Le robot cherche et calcule l'Edge sur les meilleurs matchs disponibles..."):
+                # On fournit des cotes d'exemple à l'IA pour qu'elle puisse faire la démonstration des calculs d'Edge
+                prompt_enrichi = f"{user_text}. Pour le match sélectionné, applique des cotes du marché réalistes (ex: Home 2.10, Nul 3.30, Away 3.20) si elles ne sont pas incluses, puis calcule l'Edge."
                 ai_response = call_gemini(prompt_enrichi, context_data=api_data)
                 if ai_response:
                     st.markdown(ai_response)
                     st.session_state.messages.append({"role": "user", "content": user_text})
                     st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
-if user_query := st.chat_input("Pose une question ou injecte de nouvelles cotes..."):
+if user_query := st.chat_input("Pose une question ou donne un nom de match précis..."):
     with st.chat_message("user"):
         st.markdown(user_query)
     with st.chat_message("assistant"):
