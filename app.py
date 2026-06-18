@@ -31,7 +31,7 @@ MISSION :
 
 STRUCTURE D'ANALYSE IMPOSÉE :
 ## 🏟️ 1. CONTEXTE ET ANALYSE DES DONNÉES
-## 📊 2. SCORE DE CONFIANCE (Tableau Markdown basé sur la forme, xG, absences si fournies, etc.)
+## 📊 2. SCORE DE CONFIANCE (Tableau Markdown)
 ## 📐 3. PROBABILITES ET CALCUL EDGE (Tableau Marché | Proba Modèle % | Cote Bookmaker | Edge %)
 ## 🏆 4. TOP RECOMMANDATIONS VALUE BET (Uniquement si Edge > 4% et Score > 70)
 
@@ -42,33 +42,31 @@ st.sidebar.title("Configuration App ⚙️")
 gemini_key = st.sidebar.text_input("Clé API Gemini (Google)", type="password", value="")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 💡 Comment ça fonctionne ?")
-st.sidebar.write("Cette version est **100% indépendante**. Plus besoin d'API tierce ! Donne-lui simplement les statistiques ou les cotes d'un match dans la zone de texte, et le moteur s'occupe des calculs.")
+st.sidebar.markdown("### 💡 Mode d'emploi")
+st.sidebar.write("Colle directement les informations ou stats de ton match (depuis Flashscore ou Sofascore) dans le chat ci-dessous pour obtenir l'analyse complète d'Edge.")
 
-# 4. INITIALISATION DE L'INTERFACE PRINCIPALE
-st.title("🔮 SAFE BET ENGINE V8 (Autonome)")
-st.caption("Moteur d'analyse prédictive indépendant de toute trame API externe.")
+# 4. INTERFACE PRINCIPALE
+st.title("🔮 SAFE BET ENGINE V8")
+st.caption("Moteur d'analyse prédictive indépendant.")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Affichage des messages passés
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 5. ZONE DE SAISIE ET LOGIQUE GEMINI
-if user_query := st.chat_input("Colle les stats du match ou écris : Analyse le match X contre Y avec les cotes..."):
+# 5. LOGIQUE DE CHAT AUTONOME
+if user_query := st.chat_input("Ex: Analyse France vs Italie, cotes 1.90 / 3.40 / 4.10, xG récents 1.8 et 1.2..."):
     with st.chat_message("user"):
         st.markdown(user_query)
         
     with st.chat_message("assistant"):
         if not gemini_key:
-            st.error("❌ Tu dois renseigner ta clé API Gemini dans la barre latérale gauche pour lancer le moteur.")
+            st.error("❌ Ajoute ta clé API Gemini dans la barre de gauche.")
         else:
-            with st.spinner("Mise en marche du Safe Bet Engine V8..."):
+            with St.spinner("Calculs en cours par le moteur V8..."):
                 try:
-                    # Utilisation de la bibliothèque officielle pour éliminer les erreurs de version d'URL
                     genai.configure(api_key=gemini_key)
                     model = genai.GenerativeModel(
                         model_name="gemini-1.5-flash",
@@ -79,10 +77,8 @@ if user_query := st.chat_input("Colle les stats du match ou écris : Analyse le 
                     ai_response = response.text
                     
                     st.markdown(ai_response)
-                    
-                    # Sauvegarde dans l'historique
                     st.session_state.messages.append({"role": "user", "content": user_query})
                     st.session_state.messages.append({"role": "assistant", "content": ai_response})
                     
                 except Exception as e:
-                    st.error(f"❌ Erreur lors de l'analyse : {str(e)}")
+                    st.error(f"❌ Erreur : {str(e)}")
