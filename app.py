@@ -97,8 +97,8 @@ def call_gemini(user_message, context_data=None):
         st.error("❌ Tu dois renseigner ta clé API Gemini dans la barre latérale.")
         return None
         
-    # URL stable officielle de production
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+    # URL de génération corrigée pour l'endpoint v1 direct
+    url = f"https://generativelanguage.googleapis.com/v1/gemini-1.5-flash:generateContent?key={gemini_key}"
     
     # Préparation du texte complet incluant le contexte de l'API Foot
     full_prompt = f"{SYSTEM_PROMPT}\n\n"
