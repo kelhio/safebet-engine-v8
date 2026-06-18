@@ -65,7 +65,8 @@ if user_query := st.chat_input("Ex: Analyse France vs Italie, cotes 1.90 / 3.40 
         if not gemini_key:
             st.error("❌ Ajoute ta clé API Gemini dans la barre de gauche.")
         else:
-            with St.spinner("Calculs en cours par le moteur V8..."):
+            # CORRECTION ICI : st.spinner avec un 's' minuscule
+            with st.spinner("Calculs en cours par le moteur V8..."):
                 try:
                     genai.configure(api_key=gemini_key)
                     model = genai.GenerativeModel(
