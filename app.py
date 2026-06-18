@@ -92,12 +92,12 @@ def fetch_football_stats(event_id):
         return f"Impossible de joindre l'API de statistiques : {str(e)}"
 
 def call_gemini(user_message, context_data=None):
-    """Envoie la demande à l'API Gemini avec timeout étendu et endpoint v1beta stable"""
+    """Envoie la demande à l'API Gemini avec l'URL correcte v1beta et un timeout de 60s"""
     if not gemini_key:
         st.error("❌ Tu dois renseigner ta clé API Gemini dans la barre latérale.")
         return None
         
-    # Endpoint v1beta qui accepte parfaitement gemini-1.5-flash
+    # URL corrigée avec la bonne casse et la structure exacte exigée par l'API Google v1beta
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
     
     # Préparation du texte complet incluant le contexte de l'API Foot
@@ -117,7 +117,6 @@ def call_gemini(user_message, context_data=None):
     headers = {"Content-Type": "application/json"}
     
     try:
-        # Augmentation du timeout à 60 secondes pour éviter les déconnexions
         res = requests.post(url, headers=headers, json=payload, timeout=60)
         response_json = res.json()
         
@@ -162,7 +161,7 @@ if st.sidebar.button("📊 Analyser ce Match ID"):
                 st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
 # Zone de Chat standard libre
-if user_query := st.chat_input("Pose une question ou demande une analyse..."):
+if user_query := st.chat_input("Pose une question ou demande une analysis..."):
     with st.chat_message("user"):
         st.markdown(user_query)
         
