@@ -84,7 +84,7 @@ def fetch_football_stats(event_id):
     }
     
     try:
-        response = requests.get(url, headers=headers, params=querystring, timeout=10)
+        response = requests.get(url, headers=headers, params=querystring, timeout=15)
         if response.status_code == 200:
             return response.json()
         return f"Erreur API Stats (Code {response.status_code})"
@@ -92,13 +92,13 @@ def fetch_football_stats(event_id):
         return f"Impossible de joindre l'API de statistiques : {str(e)}"
 
 def call_gemini(user_message, context_data=None):
-    """Envoie la demande à l'API Gemini de Google via un modèle à jour (gemini-2.5-flash)"""
+    """Envoie la demande à l'API Gemini avec timeout étendu et endpoint v1beta stable"""
     if not gemini_key:
         st.error("❌ Tu dois renseigner ta clé API Gemini dans la barre latérale.")
         return None
         
-    # Utilisation de l'endpoint v1 stable avec gemini-2.5-flash (le successeur officiel)
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+    # Endpoint v1beta qui accepte parfaitement gemini-1.5-flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
     
     # Préparation du texte complet incluant le contexte de l'API Foot
     full_prompt = f"{SYSTEM_PROMPT}\n\n"
@@ -117,7 +117,8 @@ def call_gemini(user_message, context_data=None):
     headers = {"Content-Type": "application/json"}
     
     try:
-        res = requests.post(url, headers=headers, json=payload, timeout=30)
+        # Augmentation du timeout à 60 secondes pour éviter les déconnexions
+        res = requests.post(url, headers=headers, json=payload, timeout=60)
         response_json = res.json()
         
         if 'candidates' in response_json:
