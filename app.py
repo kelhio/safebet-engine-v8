@@ -92,13 +92,13 @@ def fetch_football_stats(event_id):
         return f"Impossible de joindre l'API de statistiques : {str(e)}"
 
 def call_gemini(user_message, context_data=None):
-    """Envoie la demande à l'API Gemini de Google via l'URL v1 stable et valide"""
+    """Envoie la demande à l'API Gemini de Google via un modèle à jour (gemini-2.5-flash)"""
     if not gemini_key:
         st.error("❌ Tu dois renseigner ta clé API Gemini dans la barre latérale.")
         return None
         
-    # URL v1 officielle et fonctionnelle pour Gemini 1.5 Flash
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+    # Utilisation de l'endpoint v1 stable avec gemini-2.5-flash (le successeur officiel)
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={gemini_key}"
     
     # Préparation du texte complet incluant le contexte de l'API Foot
     full_prompt = f"{SYSTEM_PROMPT}\n\n"
@@ -136,7 +136,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 st.title("🔮 SAFE BET ENGINE V8")
-st.caption("Version connectée à l'API Gemini (Gratuite) et aux flux Live Football")
+st.caption("Version connectée à l'API Gemini et aux flux Live Football")
 
 # Affichage de l'historique du chat
 for msg in st.session_state.messages:
