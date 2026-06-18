@@ -33,14 +33,8 @@ MISSION :
 STRUCTURE D'UNE ANALYSE COMPLETE IMPOSÉE
 ═══════════════════════════════════════
 ## 🏟️ 1. SÉLECTION ET CONTEXTE DU MATCH
-Choisis le match le plus intéressant ou analyse celui demandé par l'utilisateur à partir des données de l'API.
-
 ## 📊 2. SCORE DE CONFIANCE (Tableau Markdown)
-Évalue la fiabilité de la prédiction de l'API (sur 100) en te basant sur les pourcentages de probabilité fournis.
-
 ## 📐 3. PROBABILITES ET CALCUL EDGE (Tableau Marché | Proba Modèle % | Cote | Edge %)
-Calcule l'Edge obligatoire en utilisant la formule : Edge = (Probabilité_Modèle * Cote) - 1.
-
 ## 🏆 4. TOP RECOMMANDATIONS VALUE BET (Uniquement si Edge > 4% et Score > 70)
 
 TONE : Ultra-professionnel, factuel, tableaux markdown, emojis de section."""
@@ -53,13 +47,12 @@ rapidapi_key = st.sidebar.text_input("Clé RapidAPI", type="password", value="f5
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🎫 Paramètres de Recherche")
 
-# Remplacement de l'ID par un sélecteur de date
 date_selectionnee = st.sidebar.date_input("Choisir une date à analyser", datetime.now())
 iso_date_str = date_selectionnee.strftime("%Y-%m-%d")
 
 # 4. FONCTION POUR RÉCUPÉRER LES PRÉDICTIONS PAR DATE
 def fetch_predictions_by_date(date_str):
-    """Interroge Football Prediction API pour récupérer toutes les probabilités d'une date"""
+    """Interroge Football Prediction API"""
     if not rapidapi_key:
         return {"error": "⚠️ Clé RapidAPI manquante."}
     
@@ -74,17 +67,18 @@ def fetch_predictions_by_date(date_str):
         response = requests.get(url, headers=headers, params=querystring, timeout=20)
         if response.status_code == 200:
             return response.json()
-        return {"error": f"Erreur API (Code {response.status_code}). Vérifie ton abonnement à cette API sur RapidAPI."}
+        return {"error": f"Erreur API (Code {response.status_code}). Vérifie ton abonnement sur RapidAPI."}
     except Exception as e:
-        return {"error": f"Impossible de joindre l'API de prédiction : {str(e)}"}
+        return {"error": f"Impossible de joindre l'API : {str(e)}"}
 
 def call_gemini(user_message, context_data=None):
-    """Envoie les données brutes et la demande à l'API Gemini"""
+    """Envoie les données brutes à l'API Gemini avec l'identifiant exact requis"""
     if not gemini_key:
         st.error("❌ Tu dois renseigner ta clé API Gemini dans la barre latérale.")
         return None
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+    # CORRECTION ICI : Ajout du suffixe '-latest' exigé par l'API v1beta
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={gemini_key}"
     
     full_prompt = f"{SYSTEM_PROMPT}\n\n"
     if context_data:
@@ -97,12 +91,13 @@ def call_gemini(user_message, context_data=None):
     try:
         res = requests.post(url, headers=headers, json=payload, timeout=45)
         response_json = res.json()
+        
         if 'candidates' in response_json:
             return response_json['candidates'][0]['content']['parts'][0]['text']
         elif 'error' in response_json:
             return f"❌ Erreur de l'API Gemini : {response_json['error'].get('message', 'Erreur inconnue')}"
         else:
-            return f"❌ Réponse inattendue de Gemini."
+            return f"❌ Réponse inattendue de l'API."
     except Exception as e:
         st.error(f"Erreur technique de connexion : {e}")
         return None
@@ -112,7 +107,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 st.title("🔮 SAFE BET ENGINE V8 (Mode Prediction API)")
-st.caption(f"Moteur connecté aux modèles mathématiques prédictifs du marché classique.")
+st.caption(f"Moteur connecté aux modèles mathématiques prédictifs.")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -131,7 +126,6 @@ if st.sidebar.button("📊 Analyser cette Date"):
             st.error(api_data["error"])
         else:
             with st.spinner("Le robot cherche et calcule l'Edge sur les meilleurs matchs disponibles..."):
-                # On fournit des cotes d'exemple à l'IA pour qu'elle puisse faire la démonstration des calculs d'Edge
                 prompt_enrichi = f"{user_text}. Pour le match sélectionné, applique des cotes du marché réalistes (ex: Home 2.10, Nul 3.30, Away 3.20) si elles ne sont pas incluses, puis calcule l'Edge."
                 ai_response = call_gemini(prompt_enrichi, context_data=api_data)
                 if ai_response:
