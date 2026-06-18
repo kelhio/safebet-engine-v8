@@ -44,7 +44,7 @@ Interprétation :
 - 90-100 → ELITE ⭐⭐⭐⭐⭐
 - 80-89  → FORTE CONFIANCE ⭐⭐⭐⭐
 - 70-79  → MODERE ⭐⭐⭐
-- < 70   → AUC UN PARI — match rejeté
+- < 70   → AUCUN PARI — match rejeté
 
 ═══════════════════════════════════════
 FILTRE ANTI-PIEGE
@@ -92,12 +92,13 @@ def fetch_football_stats(event_id):
         return f"Impossible de joindre l'API de statistiques : {str(e)}"
 
 def call_gemini(user_message, context_data=None):
-    """Envoie la demande à l'API Gemini de Google"""
+    """Envoie la demande à l'API Gemini de Google via l'URL de production v1 stable"""
     if not gemini_key:
         st.error("❌ Tu dois renseigner ta clé API Gemini dans la barre latérale.")
         return None
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/gemini-1.5-flash:generateContent?key={gemini_key}"
+    # URL stable officielle de production
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
     
     # Préparation du texte complet incluant le contexte de l'API Foot
     full_prompt = f"{SYSTEM_PROMPT}\n\n"
